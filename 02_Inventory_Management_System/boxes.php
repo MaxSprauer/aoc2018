@@ -1,6 +1,7 @@
 <?php
 
 // Copyright 2018 Max Sprauer
+// In a hotel in Lansing, MI
 
 $lines = file_get_contents('input.txt');
 $lines = explode("\n", $lines);
