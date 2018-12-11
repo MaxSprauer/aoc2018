@@ -6,7 +6,6 @@
 require_once 'CircularBuffer.class.php';
 require_once 'CircularBuffer2.class.php';
 
-set_error_handler('myErrorHandler');
 ini_set('memory_limit', '4G');
 
 assert(32 == play2(9, 25));
@@ -37,7 +36,10 @@ function play2($players, $lastMarble, $print = false)
             // The marble located immediately clockwise of the marble that was removed becomes the new current marble.
             $scores[$p] += $cb->remove();
 
-            gc_collect_cycles();
+            if ($lowestMarble % 2300 == 0) {
+                gc_collect_cycles();
+                print "Marble: $lowestMarble, Length: " . $cb->length . "\n";
+            }
         } else {
             // each Elf takes a turn placing the lowest-numbered remaining marble into the circle between the marbles that are 1 and 2 marbles clockwise of the current marble.
             $cb->insert($lowestMarble);
@@ -115,36 +117,3 @@ function play($players, $lastMarble, $print = false)
     return ($scores[0]);
 }
 
-function myErrorHandler($errno, $errstr, $errfile, $errline)
-{
-    if (!(error_reporting() & $errno)) {
-        // This error code is not included in error_reporting, so let it fall
-        // through to the standard PHP error handler
-        return false;
-    }
-
-    switch ($errno) {
-    case E_USER_ERROR:
-        echo "<b>My ERROR</b> [$errno] $errstr<br />\n";
-        echo "  Fatal error on line $errline in file $errfile";
-        echo ", PHP " . PHP_VERSION . " (" . PHP_OS . ")<br />\n";
-        echo "Aborting...<br />\n";
-        exit(1);
-        break;
-
-    case E_USER_WARNING:
-        echo "<b>My WARNING</b> [$errno] $errstr<br />\n";
-        break;
-
-    case E_USER_NOTICE:
-        echo "<b>My NOTICE</b> [$errno] $errstr<br />\n";
-        break;
-
-    default:
-        echo "Unknown error type: [$errno] $errstr<br />\n";
-        break;
-    }
-
-    /* Don't execute PHP internal error handler */
-    return true;
-}

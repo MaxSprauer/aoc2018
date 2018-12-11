@@ -16,6 +16,7 @@ class MarbleNode extends Structures_LinkedList_DoubleNode
 class CircularBuffer2
 {
     protected $list = null;
+    public $length = 0;
 
     public function __construct()
     {
@@ -31,6 +32,7 @@ class CircularBuffer2
         }
         $this->list->insertNode(new MarbleNode($marble), $existing);
         $this->list->next();    // I think we need to move pointer up
+        $this->length++;
     }
 
     public function remove()
@@ -44,8 +46,13 @@ class CircularBuffer2
 
         $this->list->deleteNode($node);
         $this->list->next();    // Delete takes us back one
+        $this->length--;
 
-        return $node->marble;
+        // Trying to make sure memory is freed here
+        $marble = $node->marble;
+        unset($node);
+
+        return $marble;
     }
 
     public function print($player)
