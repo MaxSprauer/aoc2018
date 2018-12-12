@@ -1,0 +1,9 @@
+Sizes 1 - 150
+Entries in cache: 84681
+Winner: 124 (90, 244, 16), 371427800
+Time: 4549
+
+Sizes 150 - 300
+Entries in cache: 84681
+Winner: -9468 (89, 2, 150), 398258600
+Time: 3462
