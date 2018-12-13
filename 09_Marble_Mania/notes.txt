@@ -1,0 +1,64 @@
+Winning score for  71184 marbles:  412959
+Winning score for 142368 marbles: 1539984
+
+
+Points per round for each scoring player
+32
+63	21
+80	17
+107	27
+165	58
+196	31
+227	31
+217	-10
+244	37
+329	85
+360	31
+321	-39
+354	33
+462	108
+493	31	
+524	31
+464	-59
+
+point jumps for player 1
+80
+737	657
+1957	1220
+
+point jumps for player 2
+196
+951	755	
+1945	994
+
+point jumps for player 3
+244
+1094	850
+2509	1415
+
+
+
+
+0 1 2 3
+
+0
+
+10179270  too low
+
+1.43 * x - 41.6
+
+1
+2
+3
+4
+5
+6
+7 
+
+1 P + 1 
+2
+3
+4
+5
+6
+7
