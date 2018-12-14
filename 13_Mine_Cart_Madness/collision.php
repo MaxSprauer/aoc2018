@@ -80,7 +80,8 @@ function partTwo($tracks, $carts, $width)
     $ticks = 0;
 
     do {
-        $map->tick2();
+//        $map->print();
+        $map->tick2();  // Also removes collisions
         $ticks++;
 
         if ($ticks % 10000 == 0) {
@@ -90,12 +91,8 @@ function partTwo($tracks, $carts, $width)
             }
             print "\n";
         }
-
-        //$map->print();
-        //sleep(1);
     } while (count($map->carts) > 1);
 
-    $map->tick();
     $map->print();
     print_r($map->carts);
 }
@@ -170,15 +167,22 @@ class Map
             assert($nextY >= 0 && $nextY < $MAZE_HEIGHT, "Bad coords: $nextX, $nextY, maxY: $MAZE_HEIGHT");
             assert(isset($this->tracks[$nextY][$nextX]));
 
-            // Are we crashing?  Check carts that moved before us.
+            // Are we crashing?
             $crash = false;            
-            for ($j = 0; $j < $i; $j++) {
+            for ($j = 0; $j < count($this->carts); $j++) {
+                if ($i == $j) {
+                    continue;
+                }
+
                 $other = $this->carts[$j];
                 if ($other->x == $nextX && $other->y == $nextY) {
                     unset($this->carts[$j]);
                     unset($this->carts[$i]);
                     $this->carts = array_values($this->carts);  // Renumber
-                    $i -= 2;
+                    $i -= 3;  // Removed 2 and account for the loop increment
+                    if ($i < 0) {
+                        $i = -1;
+                    }
                     $crash = true;
                     break;
                 }
