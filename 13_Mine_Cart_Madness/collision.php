@@ -32,11 +32,12 @@ foreach ($lines as $line) {
                 break;
 
             case "\n":
+            case "\r":
             case ' ':
                 break;
 
             default:
-                print "Unknown character: {$line[$x]}\n";
+                assert(0, "Unknown character: {$line[$x]}\n");
                 break;
         }
 
@@ -44,6 +45,10 @@ foreach ($lines as $line) {
 
     $y++;
 }
+
+// Fake "constants"
+$MAZE_HEIGHT = $y;
+$MAZE_WIDTH = $width;
 
 // print_r($carts);
 // partOne($tracks, $carts, $width);
@@ -72,21 +77,27 @@ function partTwo($tracks, $carts, $width)
 {
     $map = new Map($tracks, $carts, $width);
     $oneLeft = null;
+    $ticks = 0;
 
     do {
-        $map->tick();
+        $map->tick2();
+        $ticks++;
 
-        //system('cls');
+        if ($ticks % 10000 == 0) {
+            print "Ticks: $ticks, Carts left: " . count($map->carts);
+            foreach ($map->carts as $cart) {
+                print " ({$cart->x}, {$cart->y}) ";
+            }
+            print "\n";
+        }
+
         //$map->print();
-        $map->sortCarts();
-        $map->checkForCollision(true);
-        
         //sleep(1);
-    } while ($map->cartsLeft() > 1);
+    } while (count($map->carts) > 1);
 
-    // $map->tick();
+    $map->tick();
     $map->print();
-    print_r($carts);
+    print_r($map->carts);
 }
 
 class Map
@@ -133,30 +144,61 @@ class Map
 
     public function tick()
     {
+        global $MAZE_WIDTH, $MAZE_HEIGHT;
+
         $this->sortCarts();
 
         foreach ($this->carts as $cart) {
             list($nextX, $nextY) = $cart->getNextCoords();
+            assert($nextX >= 0 && $nextX < $MAZE_WIDTH, "Bad coords: $nextX, $nextY, maxX: $MAZE_WIDTH");
+            assert($nextY >= 0 && $nextY < $MAZE_HEIGHT, "Bad coords: $nextX, $nextY, maxY: $MAZE_HEIGHT");
             assert(isset($this->tracks[$nextY][$nextX]));
             $cart->tick($nextX, $nextY, $this->tracks[$nextY][$nextX]);
         }
     }
 
+    public function tick2()
+    {
+        global $MAZE_WIDTH, $MAZE_HEIGHT;
+
+        $this->sortCarts();
+
+        for ($i = 0; $i < count($this->carts); $i++) {
+            $cart = $this->carts[$i];
+            list($nextX, $nextY) = $cart->getNextCoords();
+            assert($nextX >= 0 && $nextX < $MAZE_WIDTH, "Bad coords: $nextX, $nextY, maxX: $MAZE_WIDTH");
+            assert($nextY >= 0 && $nextY < $MAZE_HEIGHT, "Bad coords: $nextX, $nextY, maxY: $MAZE_HEIGHT");
+            assert(isset($this->tracks[$nextY][$nextX]));
+
+            // Are we crashing?  Check carts that moved before us.
+            $crash = false;            
+            for ($j = 0; $j < $i; $j++) {
+                $other = $this->carts[$j];
+                if ($other->x == $nextX && $other->y == $nextY) {
+                    unset($this->carts[$j]);
+                    unset($this->carts[$i]);
+                    $this->carts = array_values($this->carts);  // Renumber
+                    $i -= 2;
+                    $crash = true;
+                    break;
+                }
+            }
+
+            if (!$crash) {
+                $cart->tick($nextX, $nextY, $this->tracks[$nextY][$nextX]);
+            }
+        }
+    }
+
     // Array must be sorted
-    function checkForCollision($partTwo = false)
+    function checkForCollision()
     {
         $prev = null;
 
         foreach ($this->carts as $cart) {
             if ($prev) {
                 if (!$cart->out && !$prev->out && $cart->ordinal($this->width) == $prev->ordinal($this->width)) {
-                    if ($partTwo) {
-                        print "Taking two more out.\n";
-                        $cart->out = true;
-                        $prev->out = true;
-                    } else {
-                        return $cart->x . ',' . $cart->y;
-                    }
+                    return $cart->x . ',' . $cart->y;
                 }
             }
             $prev = $cart;
@@ -165,25 +207,14 @@ class Map
         return null;
     }
 
-    function cartsLeft()
-    {
-        $count = 0;
-
-        foreach ($this->carts as $cart) {
-            if (!$cart->out) {
-                $count++;
-            }
-        }
-
-        return $count;
-    }
-
     function sortCarts()
     {
         uasort($this->carts, function($a, $b) {
             global $width;
             return $a->ordinal($width) - $b->ordinal($width);
         });
+
+        $this->carts = array_values($this->carts);  // Renumber
     }
 }
 
