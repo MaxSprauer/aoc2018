@@ -60,20 +60,24 @@ foreach ($input as $line) {
     }
 }
 
-// print_r($map);
+printMap($map, 'initial.txt');
 print "x: $xMin - $xMax, y: $yMin - $yMax\n";
 
 $streamHeads = array(new StreamHead(500, 1));
-iterate($map, $argv[1]);
+iterate($map, isset($argv[1]) ? $argv[1] : 10000);
 printMap($map);
+// print_r($streamHeads);
 
 
-function printMap($map)
+function printMap($map, $filename = 'map.txt')
 {
     global $xMin, $xMax, $yMin, $yMax;
 
-    for ($y = 0; $y < $yMax; $y++) {
-        for ($x = $xMin - 1; $x < $xMax + 1; $x++) {
+    // I'm printing starting at 1,1 for my sanity --- so the coords in the editor match the actual coords.
+    // The faucet itself (line 0) is not visible.
+    ob_start();
+    for ($y = 1 /* 0 */; $y < $yMax; $y++) {
+        for ($x = 1 /*$xMin - 1*/; $x <= $xMax + 1; $x++) {
             if (isset($map[$x][$y])) {
                 print $map[$x][$y];
             } else {
@@ -83,6 +87,8 @@ function printMap($map)
 
         print "\n";
     }
+    file_put_contents($filename, ob_get_contents());
+    ob_clean();
 }
 
 function iterate(&$map, $iterations)
@@ -100,6 +106,8 @@ function iterate(&$map, $iterations)
 
         if ($sh->state != 'done') {
             array_push($streamHeads, $sh);
+        } else {
+            unset($sh);
         }
 
     } while ($count < $iterations && !empty($streamHeads));
@@ -107,31 +115,44 @@ function iterate(&$map, $iterations)
 
 function action_falling(&$map, &$sh)
 {
+    global $yMax;
+
     $x = $sh->x;
     $y = $sh->y;
     $nextState = null;
 
-    // Fall down
-    while (!isset($map[$x][$y])) { // what if it's |?
+    // Fall until we hit something
+    while (!isset($map[$x][$y]) && $y <= $yMax) {
         $map[$x][$y] = '|';
         $y++;
     } 
 
-    //TODO: Check done state
+    $waterBelow = ($map[$x][$y] == '|' || $map[$x][$y] == '~');
+
     $y--;
     $sh->y = $y;
 
     // Figure out if we're in a bucket
-    $left = clayOnLeft($x, $y);
-    $right = clayOnRight($x, $y);
+    $firstClayOnLeft = clayOnLeft($x, $y);
+    $firstClayOnRight = clayOnRight($x, $y);
 
-    if ($left && $right && waterOrClayBelow($left, $right, $y)) {
+    if ($y >= $yMax) {
+        $nextState = 'done';
+    } else if ($firstClayOnLeft && $firstClayOnRight && clayBelowRange($firstClayOnLeft, $firstClayOnRight, $y)) {
         // We're in a bucket
         $nextState = 'filling';
-        $sh->left = $left;
-        $sh->right = $right;
-    } else {
+        $sh->left = $firstClayOnLeft;
+        $sh->right = $firstClayOnRight;
+    } else if (clayBelowRange($x, $x, $y)) {
+        // We've hit the edge of a bucket or a box/ledge within a larger bucket
+        list($clayBelowLeft, $clayBelowRight) = getRangeOfClayBelow($x, $y);
         $nextState = 'overflowing';
+        $sh->left = $clayBelowLeft;
+        $sh->right = $clayBelowRight;
+    } else {
+        assert($waterBelow, "Water below");
+        // We've hit water or overflow.  This stream is done.
+        $nextState = 'done';
     }
 
     return $nextState;
@@ -142,17 +163,17 @@ function action_filling(&$map, &$sh)
     $x = $sh->x;
     $y = $sh->y;
 
-    $left = clayOnLeft($x, $y);
-    $right = clayOnRight($x, $y);
+    $firstClayOnLeft = clayOnLeft($x, $y);
+    $firstClayOnRight = clayOnRight($x, $y);
 
-    while ($left && $right && $left >= $sh->left && $right <= $sh->right) {
-        for ($i = $left + 1; $i < $right; $i++) {
+    while ($firstClayOnLeft && $firstClayOnRight && $firstClayOnLeft >= $sh->left && $firstClayOnRight <= $sh->right) {
+        for ($i = $firstClayOnLeft + 1; $i < $firstClayOnRight; $i++) {
             $map[$i][$y] = '~';
         }
 
         $y--;
-        $left = clayOnLeft($x, $y);
-        $right = clayOnRight($x, $y);    
+        $firstClayOnLeft = clayOnLeft($x, $y);
+        $firstClayOnRight = clayOnRight($x, $y);    
     }
 
     $sh->y = $y;
@@ -165,21 +186,24 @@ function action_overflowing(&$map, &$sh)
     $y = $sh->y;
     $nextState = null;
 
-    // Overflow left and right until we hit clay or drop.  Each drop can be a new stream head.
+    // Overflow left and right until we hit clay or drop.  Each drop will be a new stream head.
 
     // Find borders
-    $left = clayOnLeft($x, $y);
-    $right = clayOnRight($x, $y);
+    $firstClayOnLeft = clayOnLeft($x, $y);
+    $firstClayOnRight = clayOnRight($x, $y);
 
-    $fillLeft = ($left) ? max($left, $sh->left) : $sh->left;
-    $fillRight = ($right) ? min($right, $sh->right) : $sh->right;
+// check clay under range --- if not under whole range, we're on a box inside a bucket.
+
+    // If there is a wall before we hit the edge of the bucket ($sh), respect that.
+    $fillLeft = ($firstClayOnLeft) ? max($firstClayOnLeft, $sh->left) : $sh->left;
+    $fillRight = ($firstClayOnRight) ? min($firstClayOnRight, $sh->right) : $sh->right;
 
     // Fill area between left and right with |
     for ($i = $fillLeft + 1; $i < $fillRight; $i++) {
         $map[$i][$y] = '|';
     }
 
-    if ($left == 0 || $left < $sh->left) {
+    if ($firstClayOnLeft == 0 || $firstClayOnLeft < $sh->left) {
         // Drop on the left at x = $sh->left
 
         // Add one more to cover the wall
@@ -189,7 +213,7 @@ function action_overflowing(&$map, &$sh)
         addStreamHead($sh->left - 1, $y);
     }
 
-    if ($right == 0 || $right > $sh->right) {
+    if ($firstClayOnRight == 0 || $firstClayOnRight > $sh->right) {
         // Drop on the right at x = $sh->right
 
         // Add one more to cover the wall
@@ -208,12 +232,13 @@ function addStreamHead($x, $y)
 
     foreach ($streamHeads as $sh) {
         if ($sh->x == $x && $sh->y == $y) {
-            print "Dropped stream head at $x, $y\n";
+            print "Dropped duplicate stream head [{$sh->id}] at $x, $y\n";
             return;
         }
     }
 
     $streamHeads[] = new StreamHead($x, $y);
+    print "Stream Heads: " . count($streamHeads) . "\n";
 }
 
 function clayOnLeft($x, $y)
@@ -243,29 +268,51 @@ function clayOnRight($x, $y)
     return 0;
 }
 
-function waterOrClayBelow($x1, $x2, $y)
+function clayBelowRange($x1, $x2, $y)
 {
     global $map;
 
     for ($x = $x1; $x <= $x2; $x++) {
-        if (!isset($map[$x][$y+1])) {
+        if (!isset($map[$x][$y+1]) || $map[$x][$y+1] != '#') {
             return false;
         }
-
     }
 
     return true;
 }
 
+function getRangeOfClayBelow($x, $y)
+{
+    global $map, $xMax;
+
+    for ($left = $x; $left > 0; $left--) {
+        if (!isset($map[$left][$y+1]) || $map[$left][$y+1] != '#') {
+            break;
+        }
+    }
+
+    for ($right = $x; $right < $xMax; $right++) {
+        if (!isset($map[$right][$y+1]) || $map[$right][$y+1] != '#') {
+            break;
+        }
+    }
+
+    return array($left, $right);
+}
+
 class StreamHead
 {
-    public $x, $y;
-    public $state;
+    public $x, $y;          // Location of stream head between states
+    public $state;          // String decribing current state 
+    public $left, $right;   // Left/right X coordinates to fill or overflow between
+    public $id;             // Unique ID for debugging purposes 
+    public static $lastId = 0;
 
     function __construct($x, $y)
     {
         $this->x = $x;
         $this->y = $y;
         $this->state = 'falling';
+        $this->id = ++static::$lastId;   
     }
 }
