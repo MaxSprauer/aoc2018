@@ -63,6 +63,10 @@ foreach ($input as $line) {
 printMap($map, 'initial.txt');
 print "x: $xMin - $xMax, y: $yMin - $yMax\n";
 
+// Add some wiggle room
+$xMin -= 20;
+$xMax += 20;
+
 $streamHeads = array(new StreamHead(500, 1));
 iterate($map, isset($argv[1]) ? $argv[1] : 10000);
 printMap($map);
@@ -313,7 +317,7 @@ function getRangeOfClayBelow($x, $y)
         }
     }
 
-    return array($left, $right);
+    return array($left + 1, $right - 1);
 }
 
 class StreamHead
