@@ -127,7 +127,8 @@ function action_falling(&$map, &$sh)
         $y++;
     } 
 
-    $waterBelow = ($map[$x][$y] == '|' || $map[$x][$y] == '~');
+    $waterBelow = ($map[$x][$y] == '~');
+    $streamBelow = ($map[$x][$y] == '|');
 
     $y--;
     $sh->y = $y;
@@ -138,8 +139,8 @@ function action_falling(&$map, &$sh)
 
     if ($y >= $yMax) {
         $nextState = 'done';
-    } else if ($firstClayOnLeft && $firstClayOnRight && clayBelowRange($firstClayOnLeft, $firstClayOnRight, $y)) {
-        // We're in a bucket
+    } else if ($firstClayOnLeft && $firstClayOnRight && clayOrWaterBelowRange($firstClayOnLeft, $firstClayOnRight, $y)) {
+        // We're in a bucket or part of a partially-filled U-shaped bucket (line 192)
         $nextState = 'filling';
         $sh->left = $firstClayOnLeft;
         $sh->right = $firstClayOnRight;
@@ -148,10 +149,12 @@ function action_falling(&$map, &$sh)
         list($clayBelowLeft, $clayBelowRight) = getRangeOfClayBelow($x, $y);
         $nextState = 'overflowing';
         $sh->left = $clayBelowLeft;
-        $sh->right = $clayBelowRight;
+        $sh->right = $clayBelowRight; 
+    } else if ($streamBelow) {
+        // We've hit another stream.  This stream is done.
+        $nextState = 'done';
     } else {
-        assert($waterBelow, "Water below");
-        // We've hit water or overflow.  This stream is done.
+        assert(false, "Unhandled case");
         $nextState = 'done';
     }
 
@@ -274,6 +277,19 @@ function clayBelowRange($x1, $x2, $y)
 
     for ($x = $x1; $x <= $x2; $x++) {
         if (!isset($map[$x][$y+1]) || $map[$x][$y+1] != '#') {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function clayOrWaterBelowRange($x1, $x2, $y)
+{
+    global $map;
+
+    for ($x = $x1; $x <= $x2; $x++) {
+        if (!isset($map[$x][$y+1]) || ($map[$x][$y+1] != '#' && $map[$x][$y+1] != '~')) {
             return false;
         }
     }
