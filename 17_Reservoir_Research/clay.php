@@ -63,7 +63,7 @@ foreach ($input as $line) {
 printMap($map, 'initial.txt');
 print "x: $xMin - $xMax, y: $yMin - $yMax\n";
 
-// Add some wiggle room
+// Add some growth room
 $xMin -= 20;
 $xMax += 20;
 
@@ -141,7 +141,7 @@ function action_falling(&$map, &$sh)
     $firstClayOnLeft = clayOnLeft($x, $y);
     $firstClayOnRight = clayOnRight($x, $y);
 
-    if ($y >= $yMax) {
+    if ($y + 1 >= $yMax) {
         $nextState = 'done';
     } else if ($firstClayOnLeft && $firstClayOnRight && clayOrWaterBelowRange($firstClayOnLeft, $firstClayOnRight, $y)) {
         // We're in a bucket or part of a partially-filled U-shaped bucket (line 192)
@@ -149,7 +149,7 @@ function action_falling(&$map, &$sh)
         $sh->left = $firstClayOnLeft;
         $sh->right = $firstClayOnRight;
     } else if (clayBelowRange($x, $x, $y)) {
-        // We've hit the edge of a bucket or a box/ledge within a larger bucket
+        // We've hit the edge of a bucket or a box/ledge within a larger bucket (line 828)
         list($clayBelowLeft, $clayBelowRight) = getRangeOfClayBelow($x, $y);
         $nextState = 'overflowing';
         $sh->left = $clayBelowLeft;
@@ -157,8 +157,11 @@ function action_falling(&$map, &$sh)
     } else if ($streamBelow) {
         // We've hit another stream.  This stream is done.
         $nextState = 'done';
+    } else if ($waterBelow) {
+        // We've hit water.  This stream is done.
+        $nextState = 'done';
     } else {
-        assert(false, "Unhandled case");
+        assert(false, "Unhandled case: Stream head [{$sh->id}]: $x, $y");
         $nextState = 'done';
     }
 
@@ -176,6 +179,11 @@ function action_filling(&$map, &$sh)
     while ($firstClayOnLeft && $firstClayOnRight && $firstClayOnLeft >= $sh->left && $firstClayOnRight <= $sh->right) {
         for ($i = $firstClayOnLeft + 1; $i < $firstClayOnRight; $i++) {
             $map[$i][$y] = '~';
+
+            // Check if the space below is empty (not clay or water) and start a new stream head 
+            if (!isset($map[$i][$y+1])) {
+                addStreamHead($i, $y + 1);
+            }
         }
 
         $y--;
@@ -193,13 +201,16 @@ function action_overflowing(&$map, &$sh)
     $y = $sh->y;
     $nextState = null;
 
+    if (isset($map[$x][$y]) && $map[$x][$y] == '~') {
+        // If an inner bucket is overflowing into an already-filled outer bucket, we're done
+        return 'done';
+    }
+ 
     // Overflow left and right until we hit clay or drop.  Each drop will be a new stream head.
 
     // Find borders
     $firstClayOnLeft = clayOnLeft($x, $y);
     $firstClayOnRight = clayOnRight($x, $y);
-
-// check clay under range --- if not under whole range, we're on a box inside a bucket.
 
     // If there is a wall before we hit the edge of the bucket ($sh), respect that.
     $fillLeft = ($firstClayOnLeft) ? max($firstClayOnLeft, $sh->left) : $sh->left;
