@@ -1,7 +1,15 @@
 <?php
 
 // Copyright 2018 Max Sprauer
-// This is bad.  It should probably be wrapped up in a class.  Instead we've got functions and globals.
+
+// Pass an argument to run for that many iterations (useful for debugging and animation)
+
+// The main code is a state machine.  Each falling water stream is called a StreamHead and each can
+// be in one of several states: falling, filling, overflowing, and done.  They are added to a queue
+// and run first-in, first-out.  Each iteration is doing a complete action, for example falling until
+// something is hit or filling to the top of a bucket.
+
+// The code isn't great.  The $map global should probably be a class.  But it is what it is.
 
 $input = file('input.txt');
 
@@ -11,7 +19,7 @@ $xMax = 0;
 $yMin = 10000000;
 $yMax = 0;
 
-$map[500][0] = '+';
+$map[500][0] = '+';     // The faucet
 
 // x=409, y=1414..1426
 foreach ($input as $line) {
@@ -71,7 +79,8 @@ $streamHeads = array(new StreamHead(500, 1));
 iterate($map, isset($argv[1]) ? $argv[1] : 10000);
 printMap($map);
 // print_r($streamHeads);
-
+print countWater($map) . " water squares.\n";
+print countWater($map, true) . " settled water squares.\n";
 
 function printMap($map, $filename = 'map.txt')
 {
@@ -80,8 +89,8 @@ function printMap($map, $filename = 'map.txt')
     // I'm printing starting at 1,1 for my sanity --- so the coords in the editor match the actual coords.
     // The faucet itself (line 0) is not visible.
     ob_start();
-    for ($y = 1 /* 0 */; $y < $yMax; $y++) {
-        for ($x = 1 /*$xMin - 1*/; $x <= $xMax + 1; $x++) {
+    for ($y = 1 /* 0 */; $y <= $yMax; $y++) {
+        for ($x = 1 /*$xMin - 1*/; $x <= $xMax; $x++) {
             if (isset($map[$x][$y])) {
                 print $map[$x][$y];
             } else {
@@ -93,6 +102,22 @@ function printMap($map, $filename = 'map.txt')
     }
     file_put_contents($filename, ob_get_contents());
     ob_clean();
+}
+
+function countWater($map, $partTwo = false)
+{
+    global $yMin, $yMax, $xMin, $xMax;
+    $water = 0;
+
+    for ($y = $yMin; $y <= $yMax; $y++) {
+        for ($x = $xMin; $x <= $xMax; $x++) {
+            if (isset($map[$x][$y]) && ($map[$x][$y] == '~' || (!$partTwo && $map[$x][$y] == '|'))) {
+                $water++;
+            }
+        }
+    }
+
+    return $water;
 }
 
 function iterate(&$map, $iterations)
@@ -141,7 +166,7 @@ function action_falling(&$map, &$sh)
     $firstClayOnLeft = clayOnLeft($x, $y);
     $firstClayOnRight = clayOnRight($x, $y);
 
-    if ($y + 1 >= $yMax) {
+    if ($y >= $yMax) {
         $nextState = 'done';
     } else if ($firstClayOnLeft && $firstClayOnRight && clayOrWaterBelowRange($firstClayOnLeft, $firstClayOnRight, $y)) {
         // We're in a bucket or part of a partially-filled U-shaped bucket (line 192)
