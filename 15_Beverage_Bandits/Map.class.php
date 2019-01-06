@@ -64,23 +64,37 @@ class Map
 
         return null;
     }
-
-    /*
-    public function ordinal($width)
-    {
-        return ($this->y * $width) + $this->x;
-    }
     
-    function sortCarts()
+    function sortCharArray(&$chars)
     {
-        uasort($this->carts, function($a, $b) {
-            global $width;
-            return $a->ordinal($width) - $b->ordinal($width);
+        uasort($chars, function($a, $b) {
+            return $a->ordinal($this->width) - $b->ordinal($this->width);
         });
 
-        $this->carts = array_values($this->carts);  // Renumber
+        $chars = array_values($chars);  // Renumber
     }
-*/
+
+    function sortCoordArray(&$coord)
+    {
+        uasort($coord, function($a, $b) {
+            list($xa, $ya) = explode(',', $a);
+            list($xb, $yb) = explode(',', $b);
+
+            return ($ya * $this->width + $xa) - ($yb * $this->width + $xb);
+        });
+
+        $coords = array_values($coord);  // Renumber
+    }
+
+    public function doRound()
+    {
+        $this->sortCharArray($this->chars);
+
+        foreach ($this->chars as $char) {
+            $this->takeTurnForChar($char);
+        }
+    }
+
     public function takeTurnForChar($char)
     {
         // 1 Get targets
@@ -95,35 +109,63 @@ class Map
         // 2 In range
 
         // 2a Already in range of target?
-        $inRangeOfTargets = array();;
+        $inRangeOfTargets = array();
         foreach ($targets as $target) {
             if ($char->inRangeOf($target)) {
                 $inRangeOfTargets[] = $target;
             }
         }
+        $this->sortCharArray($inRangeOfTargets);
 
         // 2b Open squares in range of target
         $openSq = array();
         foreach ($targets as $target) {
             $openSq = array_merge($openSq, $this->getOpenSquaresInRangeOf($target));
         }
-        $openSq = array_unique($openSq);
+        $openSq = array_unique($openSq);    // Array of "x,y" strings
+        $this->sortCoordArray($openSq);
+
+        // Reachable squares for character
+        $this->getReachableForCoord($char->x, $char->y, $reachable);
+
+        // Remove unreachable from open squares in range of target
+        $openAndReachable = array_intersect($openSq, $reachable);
+        $openAndReachable = array_values($openAndReachable);    // Renumber
 
         // Nowhere to go, end the turn.
-        if (empty($inRangeOfTargets) && empty($openSq)) {
+        if (empty($inRangeOfTargets) && empty($openAndReachable)) {
             return null;
         }
 
         // If in range, attack
 
+
         // Move
 
         // Reachable
 
+
         // Nearest
+        $nearest = array();
+        foreach ($openAndReachable as $oar) {
+            list($x, $y) = explode(',', $oar);
+            $nearest[$oar] = $char->getMovesToCoord($x, $y);
+        }
+        
+        // Sort by fewest moves and get the best number
+        sort($nearest);
+        $best = current($nearest);
+        
+        // Filter array by lowest number of moves
+        $nearest = array_filter($nearest, function($v, $k) use ($best) {
+            return ($v == $best);
+        }, ARRAY_FILTER_USE_BOTH);
 
-        // Chosen
+        // Sort array in reading order
+        $this->sortCoordArray($nearest);
 
+        // Get the chosen coordinate
+        $chosen = current($nearest);
 
 
     }
@@ -144,7 +186,10 @@ class Map
         return $open;
     }
 
-    function getReachableFor($x0, $y0, &$reachable)
+    /**
+     * Finds reachable squares for a coordinate that are empty
+     */
+    function getReachableForCoord($x0, $y0, &$reachable)
     {
         foreach ([[0, 1], [0, -1], [1, 0], [-1, 0]] as $diffs) {
             $x1 = $x0 + $diffs[1];
@@ -153,8 +198,33 @@ class Map
             if ($x1 >= 0 && $x1 < $this->width && $y1 >= 0 && $y1 < $this->height 
                 && !isset($reachable["$x1,$y1"]) && $this->grid[$y1][$x1] == '.') {
                     $reachable["$x1,$y1"] = 1;
-                    $this->getReachableFor($x1, $y1, $reachable);
+                    $this->getReachableForCoord($x1, $y1, $reachable);
             }
         }
     }
+
+    function BFS(Character $root, Coord $target)
+    {
+        $path = array();
+        $visited = array(); // Array of Coords
+        $nextLevel = array();   // Array of Coords
+
+        $queue[] = $root;
+        $visited[] = $root;
+
+        while (!empty($queue)) {
+            // Get current Node
+            $node = array_shift($queue);
+
+            // Add its children to queue in reading order
+
+
+
+        }
+
+
+
+    }
+
+    function BFSrecurse($path, &$visited, )
 }

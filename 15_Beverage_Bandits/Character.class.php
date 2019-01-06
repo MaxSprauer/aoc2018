@@ -2,25 +2,38 @@
 
 // Copyright 2018 Max Sprauer
 
-abstract class Character
+class Coord 
 {
     public $x, $y;
-    public $power = 3;
-    public $hitPoints = 200;
 
     public function __construct($x, $y)
     {
         $this->x = $x;
         $this->y = $y;
     }
+}
+
+abstract class Character extends Coord
+{
+    public $power = 3;
+    public $hitPoints = 200;
 
     abstract function getDescription();
 
-    function inRangeOf($char)
+    public function inRangeOf($char)
     {
         return (abs($this->x - $char->x) == 1 xor abs($this->y - $char->y) == 1);
     }
 
+    public function ordinal($width)
+    {
+        return ($this->y * $width) + $this->x;
+    }
+
+    public function getMovesToCoord($x, $y)
+    {
+        return (abs($this->x - $x) + abs($this->y - $y));
+    }
 }
 
 class Elf extends Character
