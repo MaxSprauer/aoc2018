@@ -5,7 +5,7 @@
 require_once 'Map.class.php';
 require_once 'Character.class.php';
 
-test_getReachableForCoord();
+//test_getReachableForCoord();
 test_BFS();
 
 function test_getReachableForCoord()
@@ -27,6 +27,6 @@ function test_BFS()
     $map->createCharacters();
     $map->print();
     
-    $path = $map->BFS(new Elf(2, 1), new Goblin(4, 3));
-    print_r($path);
+    $paths = $map->BFS(new Elf(2, 1), new Goblin(4, 3));
+    print_r($paths);
 }

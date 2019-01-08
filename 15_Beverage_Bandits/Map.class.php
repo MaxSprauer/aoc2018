@@ -218,24 +218,41 @@ class Map
         }
     }
 
+    /**
+     * Perform a breadth-first search based on Dijkstra's algorithm to find all the shortest paths.
+     * @return Array Array of path arrays
+     */
     function BFS(Coord $rootNode, Coord $target)
     {
-        static $visited = array(); // Array of Coords
-        static $queue = array();   // Array of QueueObjs
+        $visited = array();         // Array of Coords
+        $queue = array();           // Array of QueueObjs
+        $shortestPaths = array();   // Array of path arrays (Coords)
 
         $queue[] = new QueueObj($rootNode, array());  // Adds rootNode to path
          
         do {
             if (empty($queue)) {
-                assert(0, "Did not find target.");
-                return null;
+                if (!empty($shortestPaths)) {
+                    return $shortestPaths;
+                } else {
+                    assert(0, "Did not find target.");
+                    return null;
+                }
             }
 
             $curQueueObj = array_shift($queue);
             $curNode = $curQueueObj->coord; 
    
             if ($target->equals($curNode)) {
-                return $curQueueObj->path;
+                // We found a path.  Add to shortestPaths array, and then finish what's in the queue.
+                // That will overshoot a little bit (might follow paths longer than the shortest),
+                // but that shouldn't hurt anything.
+                if (empty($shortestPaths)) {
+                    $shortestPaths[] = $curQueueObj->path;
+                } else if (count($curQueueObj->path) == count($shortestPaths[0])) {
+                    $shortestPaths[] = $curQueueObj->path;
+                }
+                continue;
             }
 
             // Add its children to queue in reading order
@@ -246,7 +263,10 @@ class Map
                 if (($target->equals($childCoord) || $this->grid[$y1][$x1] == '.') && !in_array($childCoord, $visited)) {
                     $childQueueObj = new QueueObj($childCoord, $curQueueObj->path); // Adds child to copy of path
                     array_push($queue, $childQueueObj);
-                    $visited[] = $childCoord;
+                   
+                    if (!$target->equals($childCoord)) {
+                        $visited[] = $childCoord;
+                    }
                 }
             }
         } while (1);
