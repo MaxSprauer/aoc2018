@@ -6,12 +6,12 @@ require_once 'Map.class.php';
 require_once 'Character.class.php';
 
 //test_getReachableForCoord();
-test_BFS();
+test_BFS_ex3();
+test_BFS_ex2();
 
 function test_getReachableForCoord()
 {
     $map = new Map('input.txt');
-    $map->createCharacters();
     $map->print();
     
     print_r($map->chars);
@@ -21,12 +21,20 @@ function test_getReachableForCoord()
     assert(count($r) == 349, count($r));
 }
 
-function test_BFS()
+function test_BFS_ex3()
 {
     $map = new Map('ex3.txt');
-    $map->createCharacters();
     $map->print();
     
     $paths = $map->BFS(new Elf(2, 1), new Goblin(4, 3));
-    print_r($paths);
+    $map->printPaths($paths);
+}
+
+function test_BFS_ex2()
+{
+    $map = new Map('ex2.txt');
+    $map->print();
+    
+    $paths = $map->BFS(new Elf(5, 4), new Goblin(2, 1));
+    $map->printPaths($paths);
 }

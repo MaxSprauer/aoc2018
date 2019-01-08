@@ -22,6 +22,8 @@ class Map
         $this->grid = file($filename);
         $this->width = strlen(trim($this->grid[0]));
         $this->height = count($this->grid);
+
+        $this->createCharacters();
     }
 
     public function createCharacters()
@@ -62,6 +64,16 @@ class Map
 
             print(trim($this->grid[$y]));
             print "  $rowNotes\n";
+        }
+    }
+
+    public function printPaths($paths)
+    {
+        foreach ($paths as $path) {
+            foreach ($path as $p) {
+                print "($p->x, $p->y) ";
+            }
+            print "\n";
         }
     }
 
@@ -182,13 +194,13 @@ class Map
     }
 
     /**
-     * @return array of Coord objects
+     * @return array of Coord objects in reading order
      */
     function getOpenSquaresInRangeOf(Character $char)
     {
         $open = array();
 
-        foreach ([[0, 1], [0, -1], [1, 0], [-1, 0]] as $diffs) {
+        foreach ([[-1, 0], [0, -1], [0, 1], [1, 0]] as $diffs) {
             $x = $char->x + $diffs[1];
             $y = $char->y + $diffs[0]; 
 
@@ -221,7 +233,7 @@ class Map
     /**
      * Perform a breadth-first search based on Dijkstra's algorithm to find all the shortest paths.
      * Each queue entry maintains its own copy of its path and its visited array.  This allows each path
-     * to grow without being stunted by node visited by other paths.
+     * to grow without being stunted by nodes visited by other paths.
      * @return Array Array of path arrays
      */
     function BFS(Coord $rootNode, Coord $target)
