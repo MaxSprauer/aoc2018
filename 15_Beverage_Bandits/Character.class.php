@@ -11,6 +11,16 @@ class Coord
         $this->x = $x;
         $this->y = $y;
     }
+
+    public function __toString()
+    {
+        return "$x,$y";
+    }
+
+    public function equals(Coord $b)
+    {
+        return $this->x == $b->x && $this->y == $b->y;
+    }
 }
 
 abstract class Character extends Coord

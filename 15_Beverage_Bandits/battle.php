@@ -5,12 +5,28 @@
 require_once 'Map.class.php';
 require_once 'Character.class.php';
 
-$map = new Map('input.txt');
-$map->createCharacters();
-$map->print();
+test_getReachableForCoord();
+test_BFS();
 
-print_r($map->chars);
+function test_getReachableForCoord()
+{
+    $map = new Map('input.txt');
+    $map->createCharacters();
+    $map->print();
+    
+    print_r($map->chars);
+    
+    $r = array();
+    $map->getReachableForCoord(new Coord(12, 2), $r);
+    assert(count($r) == 349, count($r));
+}
 
-$map->getReachableFor(9, 18, $r);
-// assert(count($r) == 72, count($r));
-print_r($r);
+function test_BFS()
+{
+    $map = new Map('ex3.txt');
+    $map->createCharacters();
+    $map->print();
+    
+    $path = $map->BFS(new Elf(2, 1), new Goblin(4, 3));
+    print_r($path);
+}

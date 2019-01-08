@@ -2,6 +2,17 @@
 
 // Copyright 2018 Max Sprauer
 
+function in_array_obj($needle, $haystack)
+{
+    foreach ($haystack as $hay) {
+        if ($hay->equals($needle)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 class Map
 {
     public $chars = array(); 
@@ -122,11 +133,11 @@ class Map
         foreach ($targets as $target) {
             $openSq = array_merge($openSq, $this->getOpenSquaresInRangeOf($target));
         }
-        $openSq = array_unique($openSq);    // Array of "x,y" strings
+        $openSq = array_unique($openSq);    // Array of Coord objects
         $this->sortCoordArray($openSq);
 
         // Reachable squares for character
-        $this->getReachableForCoord($char->x, $char->y, $reachable);
+        $this->getReachableForCoord($char, $reachable);
 
         // Remove unreachable from open squares in range of target
         $openAndReachable = array_intersect($openSq, $reachable);
@@ -170,7 +181,10 @@ class Map
 
     }
 
-    function getOpenSquaresInRangeOf($char)
+    /**
+     * @return array of Coord objects
+     */
+    function getOpenSquaresInRangeOf(Character $char)
     {
         $open = array();
 
@@ -179,7 +193,7 @@ class Map
             $y = $char->y + $diffs[0]; 
 
             if ($x >= 0 && $x < $this->width && $y >= 0 && $y < $this->height && $this->grid[$y][$x] == '.') {
-                $open[] = "$x,$y";
+                $open[] = new Coord($x, $y);
             }
         }
 
@@ -189,42 +203,66 @@ class Map
     /**
      * Finds reachable squares for a coordinate that are empty
      */
-    function getReachableForCoord($x0, $y0, &$reachable)
+    function getReachableForCoord(Coord $coord, &$reachable)
     {
-        foreach ([[0, 1], [0, -1], [1, 0], [-1, 0]] as $diffs) {
-            $x1 = $x0 + $diffs[1];
-            $y1 = $y0 + $diffs[0];
-            
+        foreach ([[-1, 0], [0, -1], [0, 1], [1, 0]] as $diffs) {
+            $x1 = $coord->x + $diffs[1];
+            $y1 = $coord->y + $diffs[0];
+            $newCoord = new Coord($x1, $y1);
+
             if ($x1 >= 0 && $x1 < $this->width && $y1 >= 0 && $y1 < $this->height 
-                && !isset($reachable["$x1,$y1"]) && $this->grid[$y1][$x1] == '.') {
-                    $reachable["$x1,$y1"] = 1;
-                    $this->getReachableForCoord($x1, $y1, $reachable);
+                && !in_array_obj($newCoord, $reachable) && $this->grid[$y1][$x1] == '.') {
+                    $reachable[] = $newCoord;
+                    $this->getReachableForCoord($newCoord, $reachable);
             }
         }
     }
 
-    function BFS(Character $root, Coord $target)
+    function BFS(Coord $rootNode, Coord $target)
     {
-        $path = array();
-        $visited = array(); // Array of Coords
-        $nextLevel = array();   // Array of Coords
+        static $visited = array(); // Array of Coords
+        static $queue = array();   // Array of QueueObjs
 
-        $queue[] = $root;
-        $visited[] = $root;
+        $queue[] = new QueueObj($rootNode, array());  // Adds rootNode to path
+         
+        do {
+            if (empty($queue)) {
+                assert(0, "Did not find target.");
+                return null;
+            }
 
-        while (!empty($queue)) {
-            // Get current Node
-            $node = array_shift($queue);
+            $curQueueObj = array_shift($queue);
+            $curNode = $curQueueObj->coord; 
+   
+            if ($target->equals($curNode)) {
+                return $curQueueObj->path;
+            }
 
             // Add its children to queue in reading order
-
-
-
-        }
-
-
-
+            foreach ([[-1, 0], [0, -1], [0, 1], [1, 0]] as $diffs) {
+                $x1 = $curNode->x + $diffs[1];
+                $y1 = $curNode->y + $diffs[0];
+                $childCoord = new Coord($x1, $y1);
+                if (($target->equals($childCoord) || $this->grid[$y1][$x1] == '.') && !in_array($childCoord, $visited)) {
+                    $childQueueObj = new QueueObj($childCoord, $curQueueObj->path); // Adds child to copy of path
+                    array_push($queue, $childQueueObj);
+                    $visited[] = $childCoord;
+                }
+            }
+        } while (1);
     }
+}
 
-    function BFSrecurse($path, &$visited, )
+
+class QueueObj
+{
+    public $path;
+    public $coord;
+
+    public function __construct(Coord $c, Array $p)
+    {
+        $this->coord = $c;
+        $this->path = $p;
+        $this->path[] = $c;
+    }
 }
