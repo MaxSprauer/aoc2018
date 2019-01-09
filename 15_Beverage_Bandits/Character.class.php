@@ -57,7 +57,8 @@ abstract class Character extends Coord
 
     public function inRangeOf(Character &$char)
     {
-        return (abs($this->x - $char->x) == 1 xor abs($this->y - $char->y) == 1);
+        return (($this->y == $char->y && abs($this->x - $char->x) == 1)
+            || ($this->x == $char->x && abs($this->y - $char->y) == 1));
     }
 
     public function getMovesToCoord(Coord &$c)

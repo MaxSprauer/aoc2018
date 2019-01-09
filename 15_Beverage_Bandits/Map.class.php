@@ -108,7 +108,7 @@ class Map
         $this->sortCoordArray($this->chars);
 
         foreach ($this->chars as &$char) {
-            $done = $done || $this->takeTurnForChar($char);
+            $done = $this->takeTurnForChar($char) || $done;
         }
 
         return $done;
@@ -138,6 +138,11 @@ class Map
             }
         }
         $this->sortCoordArray($inRangeOfTargets);
+
+        // TODO this is temporary
+        if (!empty($inRangeOfTargets)) {
+           return true;
+        }
 
         // 2b Open squares in range of target
         $openSq = array();
