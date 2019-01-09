@@ -2,25 +2,29 @@
 
 // Copyright 2018 Max Sprauer
 
+ini_set('memory_limit', '2G');
+
 require_once 'Map.class.php';
 require_once 'Character.class.php';
 
 //test_getReachableForCoord();
-test_BFS_ex3();
-test_BFS_ex2();
-test_movement();
+//test_BFS_ex3();
+//test_BFS_ex2();
+//test_movement();
+//test_attack();
+partOne();
 
 function test_movement()
 {
     $map = new Map('ex1.txt');
     $map->print();
-    
+
     // print_r($map->chars);
 
     $start = time();
     for ($count = 0; $count < 3; $count++) {
-        $map->doRound();  
-        $map->print();  
+        $map->doRound();
+        $map->print();
     }
     print "Time: " . (time() - $start) . "\n";
 }
@@ -53,4 +57,30 @@ function test_BFS_ex2()
     
     $paths = $map->BFS(new Elf(5, 4), new Goblin(2, 1));
     $map->printPaths($paths);
+}
+
+function test_attack()
+{
+    $map = new Map('ex2.txt');
+    $map->print();
+
+    for ($i = 1; $i <= 48; $i++) {
+        $map->doRound();
+        $map->print($i);
+    }
+}
+
+function partOne()
+{
+    $map = new Map('input.txt');
+    $map->print();
+
+    $i = 1;
+    $done = false;
+
+    do {
+        $done = $map->doRound();
+        $map->print($i);
+    } while (!$done);
+
 }

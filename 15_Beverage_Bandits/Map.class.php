@@ -55,8 +55,12 @@ class Map
         }
     }
 
-    public function print()
+    public function print($i = null)
     {
+        if ($i != null) {
+            print "Iteration $i:\n";
+        }
+
         for ($y = 0; $y < $this->height; $y++) {
             $rowNotes = '';
             for ($x = 0; $x < $this->width; $x++) {        
@@ -69,6 +73,8 @@ class Map
             print(trim($this->grid[$y]));
             print "  $rowNotes\n";
         }
+
+        print "\n";
     }
 
     public function printPaths($paths)
@@ -108,7 +114,7 @@ class Map
         $this->sortCoordArray($this->chars);
 
         foreach ($this->chars as &$char) {
-            $done = $this->takeTurnForChar($char) || $done;
+            $done = $done || $this->takeTurnForChar($char);
         }
 
         return $done;
@@ -123,14 +129,13 @@ class Map
         $targets = array_filter($this->chars, function($val) use ($char) {
             return (get_class($char) != get_class($val));
         });
-        
+
+        // If no targets left, we're done.
         if (empty($targets)) {
             return true;
         }
 
-        // 2 In range
-
-        // 2a Already in range of target?
+        // Already in range of target?
         $inRangeOfTargets = array();
         foreach ($targets as $target) {
             if ($char->inRangeOf($target)) {
@@ -139,69 +144,91 @@ class Map
         }
         $this->sortCoordArray($inRangeOfTargets);
 
-        // TODO this is temporary
-        if (!empty($inRangeOfTargets)) {
-           return true;
-        }
+        // If a target is not range, move
+        if (empty($inRangeOfTargets)) {
+            // 2b Open squares in range of target
+            $openSq = array();
+            foreach ($targets as $target) {
+                $openSq = array_merge($openSq, $this->getOpenSquaresInRangeOf($target));
+            }
+            $openSq = array_unique($openSq, SORT_REGULAR);    // Array of Coord objects
+            $this->sortCoordArray($openSq);
 
-        // 2b Open squares in range of target
-        $openSq = array();
-        foreach ($targets as $target) {
-            $openSq = array_merge($openSq, $this->getOpenSquaresInRangeOf($target));
-        }
-        $openSq = array_unique($openSq, SORT_REGULAR);    // Array of Coord objects
-        $this->sortCoordArray($openSq);
+            // Reachable squares for character
+            $reachable = array();
+            $this->getReachableForCoord($char, $reachable);
 
-        // Reachable squares for character
-        $this->getReachableForCoord($char, $reachable);
+            // Remove unreachable from open squares in range of target
+            $openAndReachable = array_intersect($openSq, $reachable);
+            $openAndReachable = array_values($openAndReachable);    // Renumber
 
-        // Remove unreachable from open squares in range of target
-        $openAndReachable = array_intersect($openSq, $reachable);
-        $openAndReachable = array_values($openAndReachable);    // Renumber
+            // Nowhere to go, end the turn.
+            if (empty($openAndReachable)) {
+                return false;
+            }
 
-        // Nowhere to go, end the turn.
-        if (empty($inRangeOfTargets) && empty($openAndReachable)) {
-            return true;
+            // Nearest
+            $nearest = array();
+            foreach ($openAndReachable as $oar) {
+                $nearest[(string) $oar] = $char->getMovesToCoord($oar);
+            }
+
+            // Sort by fewest moves and get the best number
+            asort($nearest);
+            $best = array_values($nearest)[0];
+
+            // Filter array by lowest number of moves
+            $nearestCoords = array();
+            foreach ($nearest as $coordStr => $moves) {
+                if ($moves == $best) {
+                    $nearestCoords[] = Coord::NewFromString($coordStr);
+                }
+            }
+
+            // Sort array in reading order
+            $this->sortCoordArray($nearestCoords);
+
+            // Get the chosen coordinate
+            $chosen = $nearestCoords[0];
+
+            // Get shortest path
+            $paths = $this->BFS($char, $chosen);
+
+            // See if there are valid paths (length > 1)
+            if (empty($paths) || count($paths[0]) < 2) {
+                return false;
+            }
+
+            $path = $paths[0];
+            $newCoord = $path[1];
+            $this->moveCharacter($char, $newCoord);
+
+            // Again check in range of targets
+            $inRangeOfTargets = array();
+            foreach ($targets as $target) {
+                if ($char->inRangeOf($target)) {
+                    $inRangeOfTargets[] = $target;
+                }
+            }
+            $this->sortCoordArray($inRangeOfTargets);
         }
 
         // If in range, attack
+        if (!empty($inRangeOfTargets)) {
+            // Find unit with fewest hit points
+            $minHP = INF;
+            $target = null;
 
-
-        // Move
-
-        // Reachable
-
-
-        // Nearest
-        $nearest = array();
-        foreach ($openAndReachable as $oar) {
-            $nearest[(string) $oar] = $char->getMovesToCoord($oar);
-        }
-        
-        // Sort by fewest moves and get the best number
-        asort($nearest);
-        $best = array_values($nearest)[0];
-        
-        // Filter array by lowest number of moves
-        $nearestCoords = array();
-        foreach ($nearest as $coordStr => $moves) {
-            if ($moves == $best) {
-                $nearestCoords[] = Coord::NewFromString($coordStr);
+            // $inRangeOfTargets should be in reading order
+            foreach ($inRangeOfTargets as $t) {
+                if ($t->hitPoints < $minHP) {
+                    $target = $t;
+                    $minHP = $t->hitPoints;
+                }
             }
+
+            $this->attackCharacter($char, $target);
         }
-
-        // Sort array in reading order
-        $this->sortCoordArray($nearestCoords);
-
-        // Get the chosen coordinate
-        $chosen = $nearestCoords[0];
-
-        // Get shortest path
-        $paths = $this->BFS($char, $chosen);
-        $path = $paths[0];
-
-        $newCoord = $path[1];
-        $this->moveCharacter($char, $newCoord);
 
         return false;
     }
@@ -213,6 +240,18 @@ class Map
         $this->grid[$new->y][$new->x] = ($char instanceof Elf) ? 'E' : 'G';
         $char->x = $new->x;
         $char->y = $new->y;
+    }
+
+    public function attackCharacter(Character $source, Character &$target)
+    {
+        $target->hitPoints -= $source->power;
+
+        if ($target->hitPoints <= 0) {
+            $this->grid[$target->y][$target->x] = '.';
+            $index = array_search($target, $this->chars);
+            assert($index !== false);
+            unset($this->chars[$index]);
+        }
     }
 
     /**
