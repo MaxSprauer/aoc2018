@@ -8,6 +8,22 @@ require_once 'Character.class.php';
 //test_getReachableForCoord();
 test_BFS_ex3();
 test_BFS_ex2();
+test_movement();
+
+function test_movement()
+{
+    $map = new Map('ex1.txt');
+    $map->print();
+    
+    // print_r($map->chars);
+
+    $start = time();
+    for ($count = 0; $count < 3; $count++) {
+        $map->doRound();  
+        $map->print();  
+    }
+    print "Time: " . (time() - $start) . "\n";
+}
 
 function test_getReachableForCoord()
 {

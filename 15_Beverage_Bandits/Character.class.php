@@ -5,6 +5,7 @@
 class Coord 
 {
     public $x, $y;
+    static $cache = array();
 
     public function __construct($x, $y)
     {
@@ -12,14 +13,38 @@ class Coord
         $this->y = $y;
     }
 
+    public static function NewFromCoords($x, $y)
+    {
+        if (!isset(self::$cache["$x,$y"])) {
+            self::$cache["$x,$y"] = new Coord($x, $y);
+        }
+
+        return self::$cache["$x,$y"];
+    }
+
+    public static function NewFromString($str)
+    {
+        if (!isset(self::$cache[$str])) {
+            list($x, $y) = explode(',', $str);
+            self::$cache[$str] = new Coord($x, $y);
+        }
+
+        return self::$cache[$str];
+    }
+
     public function __toString()
     {
-        return "$x,$y";
+        return "$this->x,$this->y";
     }
 
     public function equals(Coord $b)
     {
         return $this->x == $b->x && $this->y == $b->y;
+    }
+
+    public function ordinal($width)
+    {
+        return ($this->y * $width) + $this->x;
     }
 }
 
@@ -30,19 +55,14 @@ abstract class Character extends Coord
 
     abstract function getDescription();
 
-    public function inRangeOf($char)
+    public function inRangeOf(Character &$char)
     {
         return (abs($this->x - $char->x) == 1 xor abs($this->y - $char->y) == 1);
     }
 
-    public function ordinal($width)
+    public function getMovesToCoord(Coord &$c)
     {
-        return ($this->y * $width) + $this->x;
-    }
-
-    public function getMovesToCoord($x, $y)
-    {
-        return (abs($this->x - $x) + abs($this->y - $y));
+        return (abs($this->x - $c->x) + abs($this->y - $c->y));
     }
 }
 

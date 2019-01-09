@@ -4,6 +4,10 @@
 
 function in_array_obj($needle, $haystack)
 {
+    if (!$haystack || empty($haystack)) {
+        return false;
+    }
+
     foreach ($haystack as $hay) {
         if ($hay->equals($needle)) {
             return true;
@@ -87,38 +91,33 @@ class Map
 
         return null;
     }
-    
-    function sortCharArray(&$chars)
+
+    function sortCoordArray(&$coords)
     {
-        uasort($chars, function($a, $b) {
+        uasort($coords, function($a, $b) {
             return $a->ordinal($this->width) - $b->ordinal($this->width);
         });
 
-        $chars = array_values($chars);  // Renumber
-    }
-
-    function sortCoordArray(&$coord)
-    {
-        uasort($coord, function($a, $b) {
-            list($xa, $ya) = explode(',', $a);
-            list($xb, $yb) = explode(',', $b);
-
-            return ($ya * $this->width + $xa) - ($yb * $this->width + $xb);
-        });
-
-        $coords = array_values($coord);  // Renumber
+        $coords = array_values($coords);  // Renumber
     }
 
     public function doRound()
     {
-        $this->sortCharArray($this->chars);
+        $done = false;
 
-        foreach ($this->chars as $char) {
-            $this->takeTurnForChar($char);
+        $this->sortCoordArray($this->chars);
+
+        foreach ($this->chars as &$char) {
+            $done = $done || $this->takeTurnForChar($char);
         }
+
+        return $done;
     }
 
-    public function takeTurnForChar($char)
+    /**
+     * @return boolean Is this character done?
+     */
+    public function takeTurnForChar(&$char)
     {
         // 1 Get targets
         $targets = array_filter($this->chars, function($val) use ($char) {
@@ -126,7 +125,7 @@ class Map
         });
         
         if (empty($targets)) {
-            return null;
+            return true;
         }
 
         // 2 In range
@@ -138,14 +137,14 @@ class Map
                 $inRangeOfTargets[] = $target;
             }
         }
-        $this->sortCharArray($inRangeOfTargets);
+        $this->sortCoordArray($inRangeOfTargets);
 
         // 2b Open squares in range of target
         $openSq = array();
         foreach ($targets as $target) {
             $openSq = array_merge($openSq, $this->getOpenSquaresInRangeOf($target));
         }
-        $openSq = array_unique($openSq);    // Array of Coord objects
+        $openSq = array_unique($openSq, SORT_REGULAR);    // Array of Coord objects
         $this->sortCoordArray($openSq);
 
         // Reachable squares for character
@@ -157,7 +156,7 @@ class Map
 
         // Nowhere to go, end the turn.
         if (empty($inRangeOfTargets) && empty($openAndReachable)) {
-            return null;
+            return true;
         }
 
         // If in range, attack
@@ -171,26 +170,44 @@ class Map
         // Nearest
         $nearest = array();
         foreach ($openAndReachable as $oar) {
-            list($x, $y) = explode(',', $oar);
-            $nearest[$oar] = $char->getMovesToCoord($x, $y);
+            $nearest[(string) $oar] = $char->getMovesToCoord($oar);
         }
         
         // Sort by fewest moves and get the best number
-        sort($nearest);
-        $best = current($nearest);
+        asort($nearest);
+        $best = array_values($nearest)[0];
         
         // Filter array by lowest number of moves
-        $nearest = array_filter($nearest, function($v, $k) use ($best) {
-            return ($v == $best);
-        }, ARRAY_FILTER_USE_BOTH);
+        $nearestCoords = array();
+        foreach ($nearest as $coordStr => $moves) {
+            if ($moves == $best) {
+                $nearestCoords[] = Coord::NewFromString($coordStr);
+            }
+        }
 
         // Sort array in reading order
-        $this->sortCoordArray($nearest);
+        $this->sortCoordArray($nearestCoords);
 
         // Get the chosen coordinate
-        $chosen = current($nearest);
+        $chosen = $nearestCoords[0];
 
+        // Get shortest path
+        $paths = $this->BFS($char, $chosen);
+        $path = $paths[0];
 
+        $newCoord = $path[1];
+        $this->moveCharacter($char, $newCoord);
+
+        return false;
+    }
+
+    public function moveCharacter(Character &$char, Coord $new)
+    {
+        $this->grid[$char->y][$char->x] = '.';
+        assert($this->grid[$new->y][$new->x] == '.', "grid[$new->x][$new->y] is " . $this->grid[$new->y][$new->x]);
+        $this->grid[$new->y][$new->x] = ($char instanceof Elf) ? 'E' : 'G';
+        $char->x = $new->x;
+        $char->y = $new->y;
     }
 
     /**
@@ -205,7 +222,7 @@ class Map
             $y = $char->y + $diffs[0]; 
 
             if ($x >= 0 && $x < $this->width && $y >= 0 && $y < $this->height && $this->grid[$y][$x] == '.') {
-                $open[] = new Coord($x, $y);
+                $open[] = Coord::NewFromCoords($x, $y);
             }
         }
 
@@ -220,7 +237,7 @@ class Map
         foreach ([[-1, 0], [0, -1], [0, 1], [1, 0]] as $diffs) {
             $x1 = $coord->x + $diffs[1];
             $y1 = $coord->y + $diffs[0];
-            $newCoord = new Coord($x1, $y1);
+            $newCoord = Coord::NewFromCoords($x1, $y1);
 
             if ($x1 >= 0 && $x1 < $this->width && $y1 >= 0 && $y1 < $this->height 
                 && !in_array_obj($newCoord, $reachable) && $this->grid[$y1][$x1] == '.') {
@@ -273,7 +290,7 @@ class Map
             foreach ([[-1, 0], [0, -1], [0, 1], [1, 0]] as $diffs) {
                 $x1 = $curNode->x + $diffs[1];
                 $y1 = $curNode->y + $diffs[0];
-                $childCoord = new Coord($x1, $y1);
+                $childCoord = Coord::NewFromCoords($x1, $y1);
                 if (($target->equals($childCoord) || $this->grid[$y1][$x1] == '.') && !in_array($childCoord, $visited)) {
                     if (!$target->equals($childCoord)) {
                         $visited[] = $childCoord;
@@ -293,7 +310,7 @@ class QueueObj
     public $coord;
     public $visited;
 
-    public function __construct(Coord $c, Array $p, Array $v)
+    public function __construct(Coord &$c, Array $p, Array $v)
     {
         $this->coord = $c;
         $this->path = $p;
