@@ -68,11 +68,6 @@ abstract class Character extends Coord
         return (($this->y == $char->y && abs($this->x - $char->x) == 1)
             || ($this->x == $char->x && abs($this->y - $char->y) == 1));
     }
-
-    public function getMovesToCoord(Coord &$c)
-    {
-        return (abs($this->x - $c->x) + abs($this->y - $c->y));
-    }
 }
 
 class Elf extends Character

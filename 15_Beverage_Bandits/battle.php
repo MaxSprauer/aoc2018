@@ -2,6 +2,8 @@
 
 // Copyright 2018 Max Sprauer
 
+ini_set('xdebug.max_nesting_level', 1024);
+
 require_once 'Map.class.php';
 require_once 'Character.class.php';
 
@@ -10,8 +12,8 @@ require_once 'Character.class.php';
 //test_BFS_ex2();
 //test_movement();
 //test_attack();
-test_combat(5);
-// partOne();
+//test_combat(5);
+partOne();
 
 
 function test_combat($n)

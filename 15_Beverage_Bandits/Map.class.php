@@ -136,13 +136,7 @@ class Map
         }
 
         // Already in range of target?
-        $inRangeOfTargets = array();
-        foreach ($targets as $target) {
-            if ($char->inRangeOf($target)) {
-                $inRangeOfTargets[] = $target;
-            }
-        }
-        $this->sortCoordArray($inRangeOfTargets);
+        $inRangeOfTargets = $this->getInRangeOfTargets($char, $targets);
 
         // If a target is not range, move
         if (empty($inRangeOfTargets)) {
@@ -167,50 +161,50 @@ class Map
                 return false;
             }
 
-            // Nearest
+            // Find the shortest path to each reachable location next to targets
             $nearest = array();
             foreach ($openAndReachable as $oar) {
-                $nearest[(string) $oar] = $char->getMovesToCoord($oar);
+                // BFS returns an array of paths of the shortest length in reading order.  So I
+                // think taking the first one should work.
+                $paths = $this->BFS($char, $oar);
+
+                // See if there are valid paths (length > 1)
+                if (empty($paths) || count($paths[0]) < 2) {
+                    return false;
+                }
+
+                $shortestPathForCoord[(string) $oar] = $paths[0];
             }
 
-            // Sort by fewest moves and get the best number
-            asort($nearest);
-            $best = array_values($nearest)[0];
+            // Find the number of moves on each path
+            $moves = array();
+            foreach ($shortestPathForCoord as $coord => $spc) {
+                $moves[$coord] = count($spc);
+            }
 
-            // Filter array by lowest number of moves
+            // Find the smallest number of moves for all paths
+            asort($moves);
+            $best = array_values($moves)[0];
+
+            // Filter paths array by lowest number of moves
             $nearestCoords = array();
-            foreach ($nearest as $coordStr => $moves) {
-                if ($moves == $best) {
+            foreach ($moves as $coordStr => $m) {
+                if ($m == $best) {
                     $nearestCoords[] = Coord::NewFromString($coordStr);
                 }
             }
 
             // Sort array in reading order
             $this->sortCoordArray($nearestCoords);
+            
+            // Get the shortest path matching the coordinate
+            $path = $shortestPathForCoord[(string) $nearestCoords[0]];
 
-            // Get the chosen coordinate
-            $chosen = $nearestCoords[0];
-
-            // Get shortest path
-            $paths = $this->BFS($char, $chosen);
-
-            // See if there are valid paths (length > 1)
-            if (empty($paths) || count($paths[0]) < 2) {
-                return false;
-            }
-
-            $path = $paths[0];
             $newCoord = $path[1];
             $this->moveCharacter($char, $newCoord);
 
             // Again check in range of targets
-            $inRangeOfTargets = array();
-            foreach ($targets as $target) {
-                if ($char->inRangeOf($target)) {
-                    $inRangeOfTargets[] = $target;
-                }
-            }
-            $this->sortCoordArray($inRangeOfTargets);
+            $inRangeOfTargets = $this->getInRangeOfTargets($char, $targets);
         }
 
         // If in range, attack
@@ -231,6 +225,18 @@ class Map
         }
 
         return false;
+    }
+
+    public function getInRangeOfTargets(Character $char, Array $targets)
+    {
+        $inRangeOfTargets = array();
+        foreach ($targets as $target) {
+            if ($char->inRangeOf($target)) {
+                $inRangeOfTargets[] = $target;
+            }
+        }
+        $this->sortCoordArray($inRangeOfTargets);
+        return $inRangeOfTargets;
     }
 
     public function moveCharacter(Character &$char, Coord $new)
