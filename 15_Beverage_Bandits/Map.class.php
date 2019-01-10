@@ -48,7 +48,7 @@ class Map
                         break;
 
                     default:
-                        assert(0, $this->grid[$y][$x]);
+                        assert(0, "[$x, $y] = " . $this->grid[$y][$x]);
                         break;
                 }
             }
@@ -299,13 +299,15 @@ class Map
      */
     function BFS(Coord $rootNode, Coord $target)
     {
+        $done = false;
         $queue = array();           // Array of QueueObjs
         $shortestPaths = array();   // Array of path arrays (Coords)
+        $visited = array();         // Array of Coords
 
-        $queue[] = new QueueObj($rootNode, array(), array());  // Adds rootNode to path
+        $queue[] = new QueueObj($rootNode, array());  // Adds rootNode to path
          
         do {
-            if (empty($queue)) {
+            if ($done || empty($queue)) {
                 if (!empty($shortestPaths)) {
                     return $shortestPaths;
                 } else {
@@ -316,12 +318,15 @@ class Map
 
             $curQueueObj = array_shift($queue);
             $curNode = $curQueueObj->coord;
-            $visited = $curQueueObj->visited; 
-   
+
+            // If the current path is longer than the shortest, stop the search.
+            if (!empty($shortestPaths) && (count($curQueueObj->path) > $shortestPaths[0])) {
+                $done = true;
+                continue;
+            }
+
             if ($target->equals($curNode)) {
-                // We found a path.  Add to shortestPaths array, and then finish what's in the queue.
-                // That will overshoot a little bit (might follow paths longer than the shortest),
-                // but that shouldn't hurt anything.
+                // We found a path.  Add to shortestPaths array.
                 if (empty($shortestPaths)) {
                     $shortestPaths[] = $curQueueObj->path;
                 } else if (count($curQueueObj->path) == count($shortestPaths[0])) {
@@ -339,7 +344,7 @@ class Map
                     if (!$target->equals($childCoord)) {
                         $visited[] = $childCoord;
                     }
-                    $childQueueObj = new QueueObj($childCoord, $curQueueObj->path, $visited); // Adds child to copy of path
+                    $childQueueObj = new QueueObj($childCoord, $curQueueObj->path); // Adds child to copy of path
                     array_push($queue, $childQueueObj);
                 }
             }
@@ -352,13 +357,11 @@ class QueueObj
 {
     public $path;
     public $coord;
-    public $visited;
 
-    public function __construct(Coord &$c, Array $p, Array $v)
+    public function __construct(Coord &$c, Array $p)
     {
         $this->coord = $c;
         $this->path = $p;
         $this->path[] = $c;
-        $this->visited = $v;
     }
 }

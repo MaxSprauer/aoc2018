@@ -52,8 +52,16 @@ abstract class Character extends Coord
 {
     public $power = 3;
     public $hitPoints = 200;
+    public $id;
+    static $currentId = 1;
 
     abstract function getDescription();
+
+    public function __construct($x, $y)
+    {
+        $this->id = self::$currentId++;
+        parent::__construct($x, $y);
+    }
 
     public function inRangeOf(Character &$char)
     {
@@ -71,7 +79,7 @@ class Elf extends Character
 {
     public function getDescription()
     {
-        return "E({$this->hitPoints})";
+        return "E{$this->id}({$this->hitPoints})";
     }
 }
 
@@ -79,6 +87,6 @@ class Goblin extends Character
 {
     public function getDescription()
     {
-        return "G({$this->hitPoints})";
+        return "G{$this->id}({$this->hitPoints})";
     }
 }

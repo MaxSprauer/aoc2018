@@ -2,8 +2,6 @@
 
 // Copyright 2018 Max Sprauer
 
-ini_set('memory_limit', '2G');
-
 require_once 'Map.class.php';
 require_once 'Character.class.php';
 
@@ -12,7 +10,23 @@ require_once 'Character.class.php';
 //test_BFS_ex2();
 //test_movement();
 //test_attack();
-partOne();
+test_combat(5);
+// partOne();
+
+
+function test_combat($n)
+{
+    $map = new Map("combat{$n}.txt");
+    $map->print();
+
+    $done = false;
+    $i = 1;
+    do {
+        $done = $map->doRound();
+        $map->print($i++);
+    } while (!$done);
+
+}
 
 function test_movement()
 {
@@ -80,7 +94,7 @@ function partOne()
 
     do {
         $done = $map->doRound();
-        $map->print($i);
+        $map->print($i++);
     } while (!$done);
 
 }
