@@ -57,6 +57,8 @@ class Map
 
     public function print($i = null)
     {
+        system("clear");
+        
         if ($i != null) {
             print "Iteration $i:\n";
         }
@@ -253,6 +255,11 @@ class Map
         $target->hitPoints -= $source->power;
 
         if ($target->hitPoints <= 0) {
+            if (PART_TWO && get_class($target) == 'Elf') {
+                print "An elf died.\n";
+                exit(0);
+            }
+
             $this->grid[$target->y][$target->x] = '.';
             $index = array_search($target, $this->chars);
             assert($index !== false);

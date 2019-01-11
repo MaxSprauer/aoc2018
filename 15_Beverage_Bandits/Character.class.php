@@ -50,7 +50,7 @@ class Coord
 
 abstract class Character extends Coord
 {
-    public $power = 3;
+    public $power;
     public $hitPoints = 200;
     public $id;
     static $currentId = 1;
@@ -72,6 +72,12 @@ abstract class Character extends Coord
 
 class Elf extends Character
 {
+    public function __construct($x, $y)
+    {
+        $this->power = ELF_POINTS;
+        parent::__construct($x, $y);
+    }
+
     public function getDescription()
     {
         return "E{$this->id}({$this->hitPoints})";
@@ -80,6 +86,12 @@ class Elf extends Character
 
 class Goblin extends Character
 {
+    public function __construct($x, $y)
+    {
+        $this->power = 3;
+        parent::__construct($x, $y);
+    }
+
     public function getDescription()
     {
         return "G{$this->id}({$this->hitPoints})";

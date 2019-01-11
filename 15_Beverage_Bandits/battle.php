@@ -4,6 +4,9 @@
 
 ini_set('xdebug.max_nesting_level', 1024);
 
+define('PART_TWO', ($argc > 1));
+define('ELF_POINTS', ($argc > 1) ? $argv[1] : 3);
+
 require_once 'Map.class.php';
 require_once 'Character.class.php';
 
