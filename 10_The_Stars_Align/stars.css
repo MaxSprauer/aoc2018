@@ -1,0 +1,15 @@
+/* Copyright 2018 Max Sprauer */
+
+body {
+    background-color: black;
+}
+
+#canvas {
+    background-image: url('astronomy.jpg');
+    border-width: 1px;
+    border-style: solid;
+    border-color: dimgray;
+
+    width: 1200px;
+    height: 675px;
+}
