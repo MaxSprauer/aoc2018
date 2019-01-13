@@ -16,10 +16,12 @@
     </center>
 
     <script type="application/javascript">
-        const FIRST_FRAME = 10500;
+        const FIRST_FRAME = 10550;  //10500
         const LAST_FRAME = 10682;
         const DELAY_MS = 30;
+        const PAUSE_MS = 2000;
         const DEBUG = false;
+        var forward = true;
 
         this.points = getPoints('input.txt');
         this.counter = 0;
@@ -29,18 +31,20 @@
 
         moveStars(FIRST_FRAME);
 
-        var animTimerId = setInterval(function() {
+        var animTimerId = setTimeout(function() {
             window.requestAnimationFrame(drawFrame);
         }, DELAY_MS);
 
         function moveStars(iter)
         {
+            var m = (forward ? 1 : -1);
             $.each(this.points, function(i, point) {
-                point.x += (point.vx * iter);
-                point.y += (point.vy * iter);
+
+                point.x += (point.vx * iter * m);
+                point.y += (point.vy * iter * m);
             });
 
-            this.counter += iter;
+            this.counter += (iter * m);
         }
 
         function drawFrame()
@@ -74,37 +78,50 @@
             xAvg = Math.floor(xAvg / points.length);
             yAvg = Math.floor(yAvg / points.length);
 
-            if (this.counter % 1 == 0) {
+            // Set canvas size to fit all the stars, shrinking down to minimum half size
+            canvas.width = Math.max(xMax - xMin, 1200 / 2);
+            canvas.height = Math.max(yMax - yMin, 675 / 2);
 
-                canvas.width = Math.max(xMax - xMin, 1200 / 2);
-                canvas.height = Math.max(yMax - yMin, 675 / 2);
-                ctx.translate((canvas.width / 2) - xAvg, (canvas.height / 2) - yAvg);
+            // Keep stars in the center
+            ctx.translate((canvas.width / 2) - xAvg, (canvas.height / 2) - yAvg);
 
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Not sure why, but this doesn't seem neccesary.
+            // ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                if (DEBUG && this.counter % 100 == 0) {
-                    console.log("Drawing: " + this.counter + " width: " + canvas.width + " height: " + canvas.height + " xMin : " + xMin  + " yMin: " + yMin);
-                }
+            if (DEBUG && this.counter % 100 == 0) {
+                console.log("Drawing: " + this.counter + " width: " + canvas.width + " height: " + canvas.height + " xMin : " + xMin  + " yMin: " + yMin);
+            }
 
-                // Draw stars
-                ctx.fillStyle = 'rgb(255, 255, 0)';
-                $.each(this.points, function(i, point) {
-                    ctx.beginPath();
-                    ctx.arc(point.x, point.y, 1, 0, 2 * Math.PI);
-                    ctx.fill();
-                });
+            // Draw stars
+            ctx.fillStyle = 'rgb(255, 255, 0)';
+            $.each(this.points, function(i, point) {
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 1, 0, 2 * Math.PI);
+                ctx.fill();
+            });
 
-                // Draw bounding box
-                if (DEBUG) {
-                    ctx.strokeStyle = 'rgb(192,192,192)';
-                    ctx.strokeRect(xMin, yMin, xMax - xMin, yMax - yMin);
-                }
+            // Draw bounding box
+            if (DEBUG) {
+                ctx.strokeStyle = 'rgb(192,192,192)';
+                ctx.strokeRect(xMin, yMin, xMax - xMin, yMax - yMin);
             }
 
             this.moveStars(1);
 
-            if (this.counter == LAST_FRAME) {
-                clearInterval(animTimerId);
+            if (forward && this.counter == LAST_FRAME) {
+                forward = false;
+                setTimeout(function() {
+                    window.requestAnimationFrame(drawFrame);
+                }, PAUSE_MS);
+            } else if (!forward && this.counter == FIRST_FRAME) {
+                forward = true;
+                setTimeout(function() {
+                    window.requestAnimationFrame(drawFrame);
+                }, DELAY_MS);
+            } else {
+                setTimeout(function() {
+                    window.requestAnimationFrame(drawFrame);
+                }, DELAY_MS);
             }
         }
 
