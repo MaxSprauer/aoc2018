@@ -4,11 +4,12 @@
 
 const fs = require('fs');
 const readline = require('readline');
+var winningPoint = null;
 
 // https://stackoverflow.com/questions/38942354/how-to-return-values-from-an-event-handler-in-a-promise
-function processLineByLine() {
+function processLineByLine(filename) {
     return new Promise(function(resolve, reject) {
-        const fileStream = fs.createReadStream('input.txt');
+        const fileStream = fs.createReadStream(filename);
         const rl = readline.createInterface({
             input: fileStream,
             crlfDelay: Infinity
@@ -47,7 +48,7 @@ function findLargestRadius(bots)
     var largest = 0;
     var bot = null;
 
-    for (i = 0; i < bots.length; i++) {
+    for (var i = 0; i < bots.length; i++) {
         if (bots[i].r > largest) {
             largest = bots[i].r;
             bot = bots[i];
@@ -122,18 +123,41 @@ function Cube(xMin, xMax, yMin, yMax, zMin, zMax)
 
     this.cutInEight = function () {
         var cubes = Array();
-        var halfX = Math.floor((this.xMax - this.xMin) / 2);
-        var halfY = Math.floor((this.yMax - this.yMin) / 2);
-        var halfZ = Math.floor((this.zMax - this.zMin) / 2);
 
-        cubes.push(new Cube(this.xMin, this.xMin + halfX, this.yMin, this.yMin + halfY, this.zMin, this.zMin + halfZ));
+        var xDiff = this.xMax - this.xMin;
+        var halfX = (xDiff > 1) ? Math.ceil((xDiff) / 2) : 0;
+        var yDiff = this.yMax - this.yMin;
+        var halfY = (yDiff > 1) ? Math.ceil((yDiff) / 2) : 0;
+        var zDiff = this.zMax - this.zMin;
+        var halfZ = (zDiff > 1) ? Math.ceil((zDiff) / 2) : 0;
+
+        // We want all cubes to be the same volume, even if they overlap by one
+        // this.xMin + halfX - 1
+        /*
+        cubes.push(new Cube(this.xMin, this.xMin + halfX, this.yMin, this.yMin + halfY, this.zMin,         this.zMin + halfZ));
         cubes.push(new Cube(this.xMin, this.xMin + halfX, this.yMin, this.yMin + halfY, this.zMin + halfZ, this.zMax));
-        cubes.push(new Cube(this.xMin, this.xMin + halfX, this.yMin + halfY, this.yMax, this.zMin, this.zMin + halfZ));
-        cubes.push(new Cube(this.xMin, this.xMin + halfX, this.yMin + halfY, this.yMax, this.zMin + halfZ, this.zMax));
+        cubes.push(new Cube(this.xMin, this.xMin + halfX, this.yMin + halfY, this.yMax, this.zMin,         this.zMin + halfZ));
+        cubes.push(new Cube(this.xMin, this.xMin + halfX, this.yMin + halfY, this.yMax, this.zMin + halfZ, this.zMax    ));
         cubes.push(new Cube(this.xMin + halfX, this.xMax, this.yMin, this.yMin + halfY, this.zMin, this.zMin + halfZ));
         cubes.push(new Cube(this.xMin + halfX, this.xMax, this.yMin, this.yMin + halfY, this.zMin + halfZ, this.zMax));
         cubes.push(new Cube(this.xMin + halfX, this.xMax, this.yMin + halfY, this.yMax, this.zMin, this.zMin + halfZ));
         cubes.push(new Cube(this.xMin + halfX, this.xMax, this.yMin + halfY, this.yMax, this.zMin + halfZ, this.zMax));
+        */
+
+        // This can potentially add duplicate cubes.
+        cubes.push(new Cube(this.xMin, this.xMin + halfX, this.yMin, this.yMin + halfY, this.zMin,         this.zMin + halfZ));
+        cubes.push(new Cube(this.xMin, this.xMin + halfX, this.yMin, this.yMin + halfY, this.zMax - halfZ, this.zMax));
+        cubes.push(new Cube(this.xMin, this.xMin + halfX, this.yMax - halfY, this.yMax, this.zMin,         this.zMin + halfZ));
+        cubes.push(new Cube(this.xMin, this.xMin + halfX, this.yMax - halfY, this.yMax, this.zMax - halfZ, this.zMax    ));
+        cubes.push(new Cube(this.xMax - halfX, this.xMax, this.yMin, this.yMin + halfY, this.zMin, this.zMin + halfZ));
+        cubes.push(new Cube(this.xMax - halfX, this.xMax, this.yMin, this.yMin + halfY, this.zMax - halfZ, this.zMax));
+        cubes.push(new Cube(this.xMax - halfX, this.xMax, this.yMax - halfY, this.yMax, this.zMin, this.zMin + halfZ));
+        cubes.push(new Cube(this.xMax - halfX, this.xMax, this.yMax - halfY, this.yMax, this.zMax - halfZ, this.zMax));
+
+        // Get rid of any with 0 dimensions
+        cubes = cubes.filter(function(c) {
+            return (c.getVolume() > 0);
+        });
 
         return cubes;
     }
@@ -160,6 +184,138 @@ function Cube(xMin, xMax, yMin, yMax, zMin, zMax)
 
         return this.botsInRange;
     }
+    
+    this.isPoint = function () {
+        return (this.xMax - this.xMin == 0 && this.yMax - this.yMin == 0 && this.zMax - this.zMin == 0);
+    }
+
+    this.getVolume = function () {
+        return (this.xMax - this.xMin + 1) * (this.yMax - this.yMin + 1) * (this.zMax - this.zMin + 1);
+    }
+
+    // Only works for points.
+    this.distanceToOrigin = function () {
+        return Math.abs(this.xMax) + Math.abs(this.yMax) + Math.abs(this.zMax);
+    }
+
+    // Returns the distance from the farthest point on the cube
+    this.maxCubeDistToOrigin = function () {
+        return Math.max(Math.abs(this.xMin), Math.abs(this.xMax)) +
+            Math.max(Math.abs(this.yMin), Math.abs(this.yMax)) +
+            Math.max(Math.abs(this.zMin), Math.abs(this.zMax));
+    }
+
+    this.minCubeDistToOrigin = function () {
+        return Math.min(Math.abs(this.xMin), Math.abs(this.xMax)) +
+            Math.min(Math.abs(this.yMin), Math.abs(this.yMax)) +
+            Math.min(Math.abs(this.zMin), Math.abs(this.zMax));
+    }
+
+    this.printPoint = function () {
+        return this.xMax + ', ' + this.yMax + ', ' + this.zMax;
+    }
+
+    this.minDimension = function () {
+        return Math.min(this.xMax - this.xMin, this.yMax - this.yMin, this.zMax - this.zMin);
+    }
+
+
+    /*
+    if (xMin !== undefined) {
+        this.volume = this.getVolume();
+        this.mcdto = this.maxCubeDistToOrigin();
+
+    }
+    */
+    // if (this.getVolume() == 0) {
+        //console.log("New cube of volume: " + this.getVolume());
+    // }
+}
+
+function getWinners(cubes)
+{
+    var winners = Array();
+
+    if (cubes.length > 0) {
+
+        // Find the cube with most bots in range
+        cubes.sort(function(a, b) {
+            return b.botsInRange - a.botsInRange;
+        });
+
+// ASSERT all cubes are the same size
+
+        // Return all subcubes with maximum bots in range
+
+        // The subcube's bots in range is the maximum of any point in the subcube.  If multiple subcubes are tied, pick
+        // the one closest to the origin.
+
+        var winning = cubes[0].botsInRange;
+        if (winning > 0) {
+            winners = cubes.filter(function(c) {
+                return (c.botsInRange == winning);
+            });
+        }
+
+        // The closest point of the cube must be closer than the winning point, otherwise no point in the
+        // cube will beat the winning point
+        if (winningPoint) {
+            winners = winners.filter(function(c) {
+                return (c.minCubeDistToOrigin() <= winningPoint.distanceToOrigin() && c.botsInRange >= winningPoint.botsInRange);
+            });
+        }
+
+                /*
+        winners.sort(function(a, b) {
+            return a.maxCubeDistToOrigin() - b.maxCubeDistToOrigin();
+        });
+
+        winners = winners.slice(0, 1);
+        */
+       // console.log(cubes);
+
+        /*
+
+        // Find the cubes of each size with most bots in range.  For single points, only keep the ones
+        // closest to the origin.
+        // TODO Should be able to filter out any cube larger or equal volume than the current with fewer bots in range
+        var winning = Array();
+        var minDist = Infinity;
+        for (var cube of cubes) {
+            var vol = cube.getVolume();
+            if (vol in winning) {
+                if (cube.botsInRange > winning[vol]) {
+                    winning[vol] = cube.botsInRange;
+                }
+            } else {
+                winning[vol] = cube.botsInRange;
+            }
+
+            if (cube.isPoint()) {
+                if (cube.distanceToOrigin() < minDist) {
+                    minDist = cube.distanceToOrigin();
+                }
+            }
+        }
+
+        winners = cubes.filter(function(c) {
+            if (c.botsInRange == winning[c.getVolume()]) {
+                if (c.isPoint()) {
+                    if (c.distanceToOrigin() != minDist) {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            return false;
+        });
+    */
+    }
+
+    // console.log("Number of winners: " +winners.length);
+    return winners;
 }
 
 function cutAndCalculate(enclosingCube, bots)
@@ -170,30 +326,58 @@ function cutAndCalculate(enclosingCube, bots)
         cube.countBotsInRange(bots);
     }
 
-    // Find the cube with most bots in range
-    subcubes.sort(function(a, b) {
-        return b.botsInRange - a.botsInRange;
-    });
-
-    // Return all subcubes with maximum bots in range
-    var winning = subcubes[0].botsInRange;
-    return subcubes.filter(function(c) {
-        return (c.botsInRange == winning);
-    });
+    var winners = getWinners(subcubes);
+    return winners;
 }
 
-function reduce(cubes, bots)
+// Take an array of cubes, return the winning cubes
+function reduce(cubes, bots, depth)
 {
     var results = Array();
 
-    for (cube of cubes) {
-        if (cube.xMax - cube.xMin > 2 || cube.yMax - cube.yMin > 2 || cube.zMax - cube.zMin > 2) {
-            var subcubes = cutAndCalculate(cube, bots);
-            var reduced = reduce(subcubes, bots);
-            results = results.concat(reduced);
+    if (depth <= 23) {
+        var str = depth + " Starting reduce with cubes of volume:";
+        for (var cube of cubes) {
+            str += ' ' + cube.getVolume() + ' [' + cube.botsInRange + '] ';
+        }
+
+        console.log(String(' ').repeat(depth * 2) + str);
+    }
+
+    for (var cube of cubes) {
+        //console.log('reduce on cube of volume ' + cube.getVolume() + ' and botsInRange ' + cube.botsInRange);
+
+        if (cube.getVolume() == 672) {
+            // console.log('Got a six hundred seventy-two\'er');
+        }
+
+        if (cube.isPoint()) {
+        // if (cube.xMax - cube.xMin <= 2 || cube.yMax - cube.yMin <= 2 || cube.zMax - cube.zMin <= 2) {
+            // results.push(cube);
+            if (!winningPoint
+                    || (cube.botsInRange > winningPoint.botsInRange)
+                    || (cube.botsInRange == winningPoint.botsInRange && cube.distanceToOrigin() < winningPoint.distanceToOrigin())) {
+                console.log("New winning point: " + cube.printPoint() + ' dist: ' + cube.distanceToOrigin() + ' (' + cube.botsInRange + ')');
+                winningPoint = cube;
+            }
+    //    } else if (cube.getVolume() < 100) {
+            // console.log(String(' ').repeat(depth) + "Stopping on cube of volume " + cube.getVolume());
+    //        results.push(cube);
         } else {
-            console.log(cube);
-            results.push(cube);
+            if (cube.getVolume() < 1000) {
+                // console.log(cube.getVolume());
+            }
+
+            // if (cube.minDimension() > 2) {
+                var subcubes = cutAndCalculate(cube, bots);
+                //console.log('reduce on cube of volume ' + cube.getVolume() + ' and botsInRange ' + cube.botsInRange);
+
+                var reduced = reduce(subcubes, bots, depth + 1);
+                results = results.concat(reduced);
+            // } else {
+            //    results.push(cube);
+            //}
+
         }
     }
 
@@ -201,21 +385,28 @@ function reduce(cubes, bots)
         return [];
     }
 
-    // At this point, result should contain the best subcubes of every cube.  Only keep the ones with highest count.
-    results.sort(function(a, b) {
-        return b.botsInRange - a.botsInRange;
-    });
+    var winners = getWinners(results);
+    // console.log(String(' ').repeat(depth) + 'Returning winners of length: ' + winners.length);
 
-    var winning = results[0].botsInRange;
-    var filtered = results.filter(function(c) {
-        return (c.botsInRange == winning);
-    });
-    return filtered;
+    return winners;
+}
+
+function test_cutInEight()
+{
+    var cubes = new Cube(1, 5, 1, 5, 1, 5).cutInEight();
+    //console.log(cubes);
+    cubes = new Cube(1, 4, 1, 4, 1, 4).cutInEight();
+    //console.log(cubes);
+    cubes = new Cube(1, 2, 1, 2, 1, 2).cutInEight();
+    console.log(cubes);
+
+    var cubes = new Cube(59129130, 59129132, 10004959, 10004960, 32465446, 32465447).cutInEight();
+    console.log(cubes);
 }
 
 async function main()
 {
-    var bots = await processLineByLine();
+    var bots = await processLineByLine('input.txt');
 
     // Part one
     var bot = findLargestRadius(bots);
@@ -223,10 +414,18 @@ async function main()
     console.log(count + ' are in range.');
 
     // Part two
-    var enclosingCube = getEnclosingCube(bots);
+    //test_cutInEight();
+    //return;
 
-    var winningCubes = reduce([enclosingCube], bots);
+    var enclosingCube = getEnclosingCube(bots);
+    console.log(enclosingCube);
+    console.log(enclosingCube.getVolume());
+    // return;
+
+
+    var winningCubes = reduce([enclosingCube], bots, 0);
     console.log(winningCubes);
+    console.log(winningPoint);
 
     /*
     do {
@@ -239,4 +438,16 @@ async function main()
     // botsInRange) and find the coordinate closest to 0, 0, 0 in that cube by hand.
 }
 
+
+async function test_one()
+{
+    var bots = await processLineByLine('test1.txt');
+    var enclosingCube = getEnclosingCube(bots);
+    var winningCubes = reduce([enclosingCube], bots, 0);
+    console.log(winningCubes);
+    console.log(winningPoint);
+}
+
+
 main();
+//test_one();
